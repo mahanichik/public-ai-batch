@@ -1,0 +1,29 @@
+name: Real deterministic AI smoke
+on:
+  push:
+    paths:
+      - smoke-trigger.txt
+permissions:
+  contents: read
+jobs:
+  deterministic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run deterministic public batch
+        run: |
+          cat > smoke.json <<'JSON'
+          {"job_id":"public-smoke-v1","task_type":"market_trends","max_age_days":30,"records":[{"id":"r1","text":"Example market public business expansion signal from a current public source.","observed_at":"2099-01-01T00:00:00Z","metadata":{"source":"smoke"}},{"id":"r2","text":"Example market public business expansion signal from a current public source.","observed_at":"2099-01-01T00:00:00Z","metadata":{"source":"smoke"}}]}
+          JSON
+          python3 worker.py --job smoke.json --out out --deterministic-only
+          echo "=== RECEIPT ==="
+          cat out/receipt.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: live-deterministic-smoke
+          path: out/
+          retention-days: 3
