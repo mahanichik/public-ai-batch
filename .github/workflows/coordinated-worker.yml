@@ -1,0 +1,64 @@
+name: Coordinated public worker
+on:
+  schedule:
+    - cron: '43 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: coordinated-public-ai
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Claim public job
+        id: claim
+        env:
+          COORDINATOR_URL: ${{ secrets.COORDINATOR_URL }}
+        run: python3 coordinator_client.py claim --out claim.json >> "$GITHUB_OUTPUT"
+      - name: Install deterministic libraries
+        if: steps.claim.outputs.claimed == 'true' && contains(fromJSON('["rapidfuzz_dedupe","splink_entity_resolution","zen_evaluate"]'), steps.claim.outputs.task)
+        run: pip install --disable-pip-version-check RapidFuzz==3.14.6 splink==5.0.0 zen-engine==2.1.2 pandas
+      - name: Install local model
+        if: steps.claim.outputs.claimed == 'true' && !contains(fromJSON('["rapidfuzz_dedupe","splink_entity_resolution","zen_evaluate"]'), steps.claim.outputs.task)
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve >/tmp/ollama.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:11434/api/tags >/dev/null && break; sleep 1; done
+          ollama pull qwen3:0.6b
+          echo "OLLAMA_HOST=http://127.0.0.1:11434" >> "$GITHUB_ENV"
+          echo "PUBLIC_OLLAMA_MODEL=qwen3:0.6b" >> "$GITHUB_ENV"
+      - name: Run claimed task
+        if: steps.claim.outputs.claimed == 'true'
+        run: |
+          python3 - <<'PY'
+          import json,pathlib
+          claim=json.loads(pathlib.Path("claim.json").read_text())
+          payload=claim["job"]["payload"]
+          pathlib.Path("job.json").write_text(json.dumps(payload))
+          PY
+          case "${{ steps.claim.outputs.task }}" in
+            rapidfuzz_dedupe|splink_entity_resolution|zen_evaluate)
+              python3 deterministic_worker.py --job job.json --out out ;;
+            *)
+              python3 worker.py --job job.json --out out ;;
+          esac
+      - name: Return result
+        if: steps.claim.outputs.claimed == 'true' && always()
+        env:
+          COORDINATOR_URL: ${{ secrets.COORDINATOR_URL }}
+        run: |
+          if [ -f out/receipt.json ]; then python3 coordinator_client.py complete --claim claim.json --result-dir out; fi
+      - uses: actions/upload-artifact@v4
+        if: steps.claim.outputs.claimed == 'true' && always()
+        with:
+          name: coordinated-public-ai-output
+          path: out/
+          retention-days: 3
