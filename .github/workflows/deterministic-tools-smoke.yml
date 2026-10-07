@@ -1,0 +1,46 @@
+name: Deterministic library smoke
+on:
+  push:
+    paths:
+      - deterministic-tools-trigger.txt
+permissions:
+  contents: read
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --disable-pip-version-check RapidFuzz==3.14.6 splink==5.0.0 zen-engine==2.1.2 pandas
+      - name: RapidFuzz smoke
+        run: |
+          cat > rapid.json <<'JSON'
+          {"job_id":"rapid-smoke","task_type":"rapidfuzz_dedupe","threshold":92,"match_fields":["name","city"],"records":[{"id":"a","name":"Example Hotel","city":"Example City"},{"id":"b","name":"Example Hotels","city":"Example City"},{"id":"c","name":"Different Cafe","city":"Example City"}]}
+          JSON
+          python3 deterministic_worker.py --job rapid.json --out out-rapid
+          cat out-rapid/receipt.json
+      - name: Splink deterministic smoke
+        run: |
+          cat > splink.json <<'JSON'
+          {"job_id":"splink-smoke","task_type":"splink_entity_resolution","block_fields":["domain"],"records":[{"id":"a","domain":"example.test"},{"id":"b","domain":"example.test"},{"id":"c","domain":"other.test"}]}
+          JSON
+          python3 deterministic_worker.py --job splink.json --out out-splink
+          cat out-splink/receipt.json
+      - name: ZEN passthrough smoke
+        run: |
+          cat > zen.json <<'JSON'
+          {"job_id":"zen-smoke","task_type":"zen_evaluate","decision":{"contentType":"application/vnd.gorules.decision","nodes":[{"type":"inputNode","id":"4354dede-b4ed-4a57-9b80-45c1e33e2326","name":"request","position":{"x":90,"y":200}},{"type":"outputNode","id":"27e18970-f565-43eb-859e-568c9f53b7a8","name":"response","position":{"x":510,"y":200}}],"edges":[{"id":"4c036317-bc39-4ad2-a825-adbfd4ca2df6","sourceId":"4354dede-b4ed-4a57-9b80-45c1e33e2326","type":"edge","targetId":"27e18970-f565-43eb-859e-568c9f53b7a8"}]},"inputs":[{"value":7}]}
+          JSON
+          python3 deterministic_worker.py --job zen.json --out out-zen
+          cat out-zen/receipt.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deterministic-tools-smoke
+          path: |
+            out-rapid/
+            out-splink/
+            out-zen/
+          retention-days: 3
