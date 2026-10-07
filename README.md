@@ -22,3 +22,12 @@ Available execution modes:
 No paid fallback is enabled.
 
 Do not provide credentials, private records, confidential prompts, or production configuration to this repository.
+
+
+## Deterministic analysis
+
+- `rapidfuzz_dedupe`: conservative fuzzy clustering with an explicit threshold.
+- `splink_entity_resolution`: deterministic Splink linking on caller-selected public identifiers; it does not train or expose private matching policy.
+- `zen_evaluate`: executes caller-supplied public JDM decisions with the open-source ZEN engine.
+
+Private or proprietary rules do not belong in public workflow inputs.

@@ -31,17 +31,22 @@ jobs:
         with:
           python-version: "3.12"
       - name: Write bounded public job
+        id: job
         env:
           JOB_JSON: ${{ inputs.job_json }}
         run: |
-          python3 - <<'PY'
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json,os,pathlib
           raw=os.environ["JOB_JSON"]
           if len(raw)>60000: raise SystemExit("job_json too large")
-          pathlib.Path("job.json").write_text(json.dumps(json.loads(raw)),encoding="utf-8")
+          job=json.loads(raw);pathlib.Path("job.json").write_text(json.dumps(job),encoding="utf-8")
+          print("task="+str(job.get("task_type") or ""))
           PY
+      - name: Install deterministic libraries
+        if: contains(fromJSON('["rapidfuzz_dedupe","splink_entity_resolution","zen_evaluate"]'), steps.job.outputs.task)
+        run: pip install --disable-pip-version-check RapidFuzz==3.14.6 splink==5.0.0 zen-engine==2.1.2 pandas
       - name: Install local Ollama model
-        if: inputs.local_model == true
+        if: inputs.local_model == true && !contains(fromJSON('["rapidfuzz_dedupe","splink_entity_resolution","zen_evaluate"]'), steps.job.outputs.task)
         env:
           LOCAL_MODEL: ${{ inputs.local_model_name }}
         run: |
@@ -51,15 +56,20 @@ jobs:
           ollama pull "$LOCAL_MODEL"
           echo "OLLAMA_HOST=http://127.0.0.1:11434" >> "$GITHUB_ENV"
           echo "PUBLIC_OLLAMA_MODEL=$LOCAL_MODEL" >> "$GITHUB_ENV"
-      - name: Run bounded AI worker
+      - name: Run bounded worker
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          args=()
-          if [ "${{ inputs.deterministic_only }}" = "true" ]; then args+=(--deterministic-only); fi
-          python3 worker.py --job job.json --out out "${args[@]}"
+          case "${{ steps.job.outputs.task }}" in
+            rapidfuzz_dedupe|splink_entity_resolution|zen_evaluate)
+              python3 deterministic_worker.py --job job.json --out out ;;
+            *)
+              args=()
+              if [ "${{ inputs.deterministic_only }}" = "true" ]; then args+=(--deterministic-only); fi
+              python3 worker.py --job job.json --out out "${args[@]}" ;;
+          esac
       - uses: actions/upload-artifact@v4
         with:
           name: public-ai-worker-output

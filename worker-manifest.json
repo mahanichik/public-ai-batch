@@ -23,6 +23,21 @@
       "key": "outcome_analysis",
       "kind": "ai_task",
       "output": "result+receipt"
+    },
+    {
+      "key": "rapidfuzz_dedupe",
+      "kind": "deterministic_task",
+      "output": "result+receipt"
+    },
+    {
+      "key": "splink_entity_resolution",
+      "kind": "deterministic_task",
+      "output": "result+receipt"
+    },
+    {
+      "key": "zen_evaluate",
+      "kind": "deterministic_task",
+      "output": "result+receipt"
     }
   ],
   "providers": [
@@ -36,5 +51,10 @@
     "public_data_only": true,
     "credentials": false,
     "private_records": false
+  },
+  "libraries": {
+    "rapidfuzz": "3.14.6",
+    "splink": "5.0.0",
+    "zen_engine": "2.1.2"
   }
 }
