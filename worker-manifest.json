@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "worker_group": "public-ai-workers",
+  "compute_class": "github_public",
+  "contract": "CONTRACT.md",
+  "capabilities": [
+    {
+      "key": "prospect_classify",
+      "kind": "ai_task",
+      "output": "result+receipt"
+    },
+    {
+      "key": "market_trends",
+      "kind": "ai_task",
+      "output": "result+receipt"
+    },
+    {
+      "key": "content_brief",
+      "kind": "ai_task",
+      "output": "result+receipt"
+    },
+    {
+      "key": "outcome_analysis",
+      "kind": "ai_task",
+      "output": "result+receipt"
+    }
+  ],
+  "providers": [
+    "ollama_local",
+    "groq",
+    "gemini",
+    "openrouter_zero_price",
+    "deterministic"
+  ],
+  "security": {
+    "public_data_only": true,
+    "credentials": false,
+    "private_records": false
+  }
+}
