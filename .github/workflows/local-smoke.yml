@@ -1,0 +1,40 @@
+name: Real local-model smoke
+on:
+  push:
+    paths:
+      - local-smoke-trigger.txt
+permissions:
+  contents: read
+jobs:
+  local-ai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Ollama and small public model
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve >/tmp/ollama.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:11434/api/tags >/dev/null && break; sleep 1; done
+          ollama pull qwen3:0.6b
+      - name: Run real local AI classification
+        env:
+          OLLAMA_HOST: http://127.0.0.1:11434
+          PUBLIC_OLLAMA_MODEL: qwen3:0.6b
+        run: |
+          cat > smoke.json <<'JSON'
+          {"job_id":"local-ai-smoke-v1","task_type":"prospect_classify","max_age_days":30,"instructions":"Classify whether the public signal merits further commercial research. Do not invent facts.","records":[{"id":"p1","text":"A hotel in Example City is publicly hiring a digital marketing manager and recently announced a new property opening.","observed_at":"2099-01-01T00:00:00Z","metadata":{"source":"public-smoke"}}]}
+          JSON
+          python3 worker.py --job smoke.json --out out
+          echo "=== RECEIPT ==="
+          cat out/receipt.json
+          echo "=== RESULT ==="
+          cat out/result.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: live-local-ai-smoke
+          path: out/
+          retention-days: 3
