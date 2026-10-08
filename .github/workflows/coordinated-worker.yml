@@ -46,9 +46,9 @@ jobs:
           PY
           case "${{ steps.claim.outputs.task }}" in
             rapidfuzz_dedupe|splink_entity_resolution|zen_evaluate)
-              python3 deterministic_worker.py --job job.json --out out ;;
+              python3 deterministic_worker.py --job job.json --out out > /dev/null ;;
             *)
-              python3 worker.py --job job.json --out out ;;
+              python3 worker.py --job job.json --out out > /dev/null ;;
           esac
       - name: Return result
         if: steps.claim.outputs.claimed == 'true' && always()
@@ -56,9 +56,3 @@ jobs:
           COORDINATOR_URL: ${{ secrets.COORDINATOR_URL }}
         run: |
           if [ -f out/receipt.json ]; then python3 coordinator_client.py complete --claim claim.json --result-dir out; fi
-      - uses: actions/upload-artifact@v4
-        if: steps.claim.outputs.claimed == 'true' && always()
-        with:
-          name: coordinated-public-ai-output
-          path: out/
-          retention-days: 3
