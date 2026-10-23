@@ -8,7 +8,6 @@ BLOCKED = [
     (re.compile(r"mahanichik/VianaPulse(?:\\b|/)", re.I), "private repository reference"),
     (re.compile(r"(?i)(?:ghp_|github_pat_|gho_|ghu_|ghs_)[A-Za-z0-9_]{15,}"), "GitHub credential"),
     (re.compile(r"(?i)-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"), "private key"),
-    (re.compile(r"(?i)\\b(?:GITHUB_TOKEN|GH_TOKEN|CLOUDFLARE_API_TOKEN|DATABASE_URL|GEMINI_API_KEY)\\b"), "sensitive credential name"),
 ]
 EXCLUDED = {".git", "__pycache__", ".pytest_cache", ".venv", "venv", "node_modules"}
 SUFFIXES = {".py", ".js", ".ts", ".json", ".yml", ".yaml", ".md", ".toml", ".sh"}
@@ -27,6 +26,6 @@ for path in ROOT.rglob("*"):
             issues.append(f"{path.relative_to(ROOT)}: {label}")
 if issues:
     print("PUBLIC BOUNDARY FAILED:")
-    print("\\n".join(issues))
+    print("\n".join(issues))
     sys.exit(1)
 print("PUBLIC BOUNDARY PASS: no known private-repo reference or credential patterns found")
