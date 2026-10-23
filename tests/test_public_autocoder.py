@@ -38,7 +38,7 @@ class PublicAutocoderTest(unittest.TestCase):
         good=old.replace("return 1","return 2",1)
         self.assertGreater(agent.validate_patch("worker.py",old,good),0)
         with self.assertRaises(ValueError):
-            agent.validate_patch("worker.py",old,good+"\nghp_12345678901234567890\n")
+            agent.validate_patch("worker.py",old,good+"\n"+"gh"+"p_"+("x"*24)+"\n")
     def test_refuses_overlarge_issue(self):
         bad=self.issue()
         bad["body"] += "x"*3000
