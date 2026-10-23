@@ -1,0 +1,22 @@
+name: Isolated free runner security gate
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: isolated-free-runner
+  cancel-in-progress: true
+jobs:
+  verify-public-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify public-only boundary
+        run: python3 ops/public_boundary_gate.py
+      - name: Verify Python syntax
+        run: python3 -m compileall -q .
