@@ -27,7 +27,7 @@ class PublicAutocoderTest(unittest.TestCase):
         self.assertEqual(agent.accept_issue(self.issue())["issue"],42)
     def test_requires_explicit_existing_function(self):
         x=self.issue()
-        x["body"]=x["body"].replace("Function: x\\n","")
+        x["body"]=x["body"].replace("Function: x","")
         self.assertIsNone(agent.accept_issue(x))
         x=self.issue()
         x["body"]=x["body"].replace("Function: x","Function: nonexistent")
