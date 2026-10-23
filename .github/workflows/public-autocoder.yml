@@ -1,0 +1,82 @@
+name: Public-only local AI autocoder
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+  issues:
+    types: [labeled, opened, reopened]
+permissions:
+  contents: read
+concurrency:
+  group: public-only-autocoder
+  cancel-in-progress: false
+jobs:
+  code:
+    if: github.event_name != 'issues' || github.event.issue.user.login == 'mahanichik'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    outputs:
+      ready: ${{ steps.claim.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check public boundary
+        run: python3 ops/public_boundary_gate.py
+      - name: Claim owner-approved public issue
+        id: claim
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 ops/public_autocoder.py claim
+      - name: Install local open model only for real work
+        if: steps.claim.outputs.ready == 'true'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve >/tmp/ollama-autocoder.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break; sleep 1; done
+          ollama pull qwen2.5-coder:3b
+      - name: Prepare source change without write credentials
+        if: steps.claim.outputs.ready == 'true'
+        run: python3 ops/public_autocoder.py propose
+      - name: Verify public boundary, syntax, and full regression
+        if: steps.claim.outputs.ready == 'true'
+        run: |
+          python3 ops/public_boundary_gate.py
+          python3 -m compileall -q .
+          python3 -m pip install --disable-pip-version-check RapidFuzz==3.14.6 splink==5.0.0 zen-engine==2.1.2 pandas
+          python3 -m unittest discover -s tests -v
+      - name: Export tested PUBLIC files only
+        if: steps.claim.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-coding-candidate
+          path: |
+            public_autocoder_task.json
+            worker.py
+            deterministic_worker.py
+            coordinator_client.py
+          retention-days: 1
+  publish:
+    needs: code
+    if: needs.code.result == 'success' && needs.code.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: public-coding-candidate
+      - name: Publish draft PR; never merge/deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ops/public_autocoder.py publish
