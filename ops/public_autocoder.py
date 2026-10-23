@@ -128,7 +128,7 @@ def propose():
     if edited.name != function or bool(edited.decorator_list):
         raise ValueError("Function name/decorators changed")
     # Source may have a top-level return annotation and arguments; retain signature exactly.
-    if ast.dump(edited.args) != ast.dump(node.args) or ast.dump(edited.returns) != ast.dump(node.returns):
+    if ast.dump(edited.args) != ast.dump(node.args) or ((ast.dump(edited.returns) if edited.returns else None) != (ast.dump(node.returns) if node.returns else None)):
         raise ValueError("Function signature changed")
     proposed = "".join(original_lines[:node.lineno-1]) + fragment.rstrip() + "\n" + "".join(original_lines[node.end_lineno:])
     change_count = validate_patch(target,source,proposed)
