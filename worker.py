@@ -28,8 +28,10 @@ def http_json(method,url,headers=None,body=None,timeout=90):
         if len(raw)>4_000_000:raise RuntimeError("Provider response too large")
         return json.loads(raw.decode("utf-8","replace")) if raw else {}
     except urllib.error.HTTPError as e:
-        raw=e.read(1000).decode("utf-8","replace")
-        raise RuntimeError(f"HTTP {e.code} from {urllib.parse.urlparse(url).netloc}: {raw}") from e
+        # Provider error bodies are untrusted and can echo keys or user data.
+        # Preserve only the status and hostname in public runner logs.
+        host=urllib.parse.urlparse(url).hostname or "unknown"
+        raise RuntimeError(f"HTTP {e.code} from {host}") from None
 
 def openai_call(url,key,model,prompt,max_tokens=1800):
     data=http_json("POST",url,{"Authorization":f"Bearer {key}"},{
