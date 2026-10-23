@@ -8,7 +8,7 @@ TASKS={"prospect_classify","market_trends","content_brief","outcome_analysis"}
 UA="PublicAIWorker/1 (+https://github.com/public-ai-batch)"
 
 def clean(v:Any,limit:int=8000)->str:
-    return re.sub(r"\s+"," ",str(v or "")).strip()[:limit]
+    return '' if limit < 0 else re.sub(r"\s+", " ", str(v or "")).strip()[:limit]
 
 def parse_time(v:Any):
     if not v:return None
