@@ -20,11 +20,18 @@ class PublicAutocoderTest(unittest.TestCase):
         return {"number":42, "state":"open",
                 "user":{"login":login}, "title":"Public regression",
                 "labels":[{"name":label or agent.LABEL}],
-                "body":f"Target: {target}\nFix this generic public source behavior with a small regression-safe change."}
+                "body":f"Target: {target}\nFunction: x\nFix this generic public source behavior with a small regression-safe change."}
     def test_owner_label_mandatory(self):
         self.assertIsNone(agent.accept_issue(self.issue(login="outsider")))
         self.assertIsNone(agent.accept_issue(self.issue(label="random")))
         self.assertEqual(agent.accept_issue(self.issue())["issue"],42)
+    def test_requires_explicit_existing_function(self):
+        x=self.issue()
+        x["body"]=x["body"].replace("Function: x\\n","")
+        self.assertIsNone(agent.accept_issue(x))
+        x=self.issue()
+        x["body"]=x["body"].replace("Function: x","Function: nonexistent")
+        self.assertIsNone(agent.accept_issue(x))
     def test_public_allowlist(self):
         for target in ("AGENTS.md","../../private","secrets.env",".github/workflows/a.yml"):
             self.assertIsNone(agent.accept_issue(self.issue(target=target)))
